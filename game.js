@@ -5,8 +5,9 @@
 (() => {
   "use strict";
 
-  const SAVE_KEY = "jnu_sim_save_v1";
+  const SAVE_KEY = "jnu_sim_save_v2";
   const META_KEY = "jnu_sim_meta_v1";
+  const TURNS_PER_SEMESTER = 6;
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -33,6 +34,9 @@
     genderGroup: $("#gender-group"),
     selectHome: $("#select-home"),
     collegeGrid: $("#college-grid"),
+    collegeDetail: $("#college-detail"),
+    majorGrid: $("#major-grid"),
+    majorCount: $("#major-count"),
     traitGrid: $("#trait-grid"),
     createSummary: $("#create-summary"),
     btnEnroll: $("#btn-enroll"),
@@ -124,7 +128,7 @@
 
   let state = null;
   let meta = loadMeta();
-  let selected = { college: "food", trait: "grinder", gender: "男" };
+  let selected = { college: "food", major: null, trait: "grinder", gender: "男" };
   let audioCtx = null;
   let modalDismissible = true;
   let saveFlashTimer = null;
@@ -186,7 +190,7 @@
   }
 
   function semesterInfo(index) {
-    return JNU.semesters[index] || { name: "毕业", year: 2030, weeks: ["第16周", "第16周", "第16周", "第16周"] };
+    return JNU.semesters[index] || { name: "毕业", year: 2030, weeks: ["第16-18周", "第16-18周", "第16-18周", "第16-18周", "第16-18周", "第16-18周"] };
   }
 
   function currentSemesterName() {
@@ -195,7 +199,7 @@
 
   function currentWeekLabel() {
     const info = semesterInfo(state ? state.semester : 0);
-    return info.weeks[state ? state.turn : 0] || "第16周";
+    return info.weeks[state ? state.turn : 0] || "第16-18周";
   }
 
   function typeText(value) {
@@ -234,7 +238,7 @@
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      return parsed && parsed.version === 1 ? parsed : null;
+      return parsed && parsed.version === 2 ? parsed : null;
     } catch (error) {
       return null;
     }
@@ -277,6 +281,11 @@
      ========================================================= */
 
   function init() {
+    try {
+      localStorage.removeItem("jnu_sim_save_v1");
+    } catch (error) {
+      /* 旧版存档不存在或本地存储不可用时忽略 */
+    }
     populateHometowns();
     renderCollegeOptions();
     renderTraitOptions();
@@ -336,7 +345,18 @@
       const card = event.target.closest(".college-card");
       if (!card) return;
       selected.college = card.dataset.id;
+      const college = getCollege(selected.college);
+      selected.major = college.majors[0];
       renderCollegeOptions();
+      updateCreateSummary();
+      play("click");
+    });
+
+    UI.majorGrid.addEventListener("click", (event) => {
+      const card = event.target.closest(".major-card");
+      if (!card) return;
+      selected.major = card.dataset.major;
+      renderMajorOptions();
       updateCreateSummary();
       play("click");
     });
@@ -454,11 +474,44 @@
   function renderCollegeOptions() {
     UI.collegeGrid.innerHTML = JNU.colleges.map((college) => `
       <button type="button" class="college-card ${college.id === selected.college ? "is-selected" : ""}"
-        data-id="${college.id}" role="radio" aria-checked="${college.id === selected.college}">
+        data-id="${college.id}" role="radio" aria-checked="${college.id === selected.college}"
+        title="${esc(college.name)}">
         <strong>${esc(college.name)}</strong>
-        <small>${esc(college.major)}</small>
-        <span class="college-desc">${esc(college.desc)}</span>
-        <span class="college-bonus">${esc(college.bonusText)}</span>
+        <small>${esc(college.short)} · ${college.majors.length} 个专业</small>
+      </button>
+    `).join("");
+    renderCollegeDetail();
+    renderMajorOptions();
+  }
+
+  function renderCollegeDetail() {
+    const college = getCollege(selected.college);
+    UI.collegeDetail.innerHTML = `
+      <div class="college-detail-top">
+        <div>
+          <h4>${esc(college.name)}</h4>
+          <p>${esc(college.desc)}</p>
+        </div>
+        <span class="college-detail-badge">${esc(college.short)}</span>
+      </div>
+      <div class="college-detail-foot">
+        <span class="motto">${esc(college.motto)}</span>
+        <span class="bonus">${esc(college.bonusText)}</span>
+      </div>
+    `;
+  }
+
+  function renderMajorOptions() {
+    const college = getCollege(selected.college);
+    if (!selected.major || !college.majors.includes(selected.major)) {
+      selected.major = college.majors[0];
+    }
+    UI.majorCount.textContent = `${college.majors.length} 个专业可选`;
+    UI.majorGrid.innerHTML = college.majors.map((major) => `
+      <button type="button" class="major-card ${major === selected.major ? "is-selected" : ""}"
+        data-major="${esc(major)}" role="radio" aria-checked="${major === selected.major}">
+        <strong>${esc(major)}</strong>
+        <small>四年制本科 · ${esc(college.short)}</small>
       </button>
     `).join("");
   }
@@ -476,12 +529,12 @@
 
   function updateCreateSummary() {
     const college = getCollege(selected.college);
+    const major = selected.major || college.majors[0];
     const trait = getTrait(selected.trait);
     const home = getHometown(UI.selectHome.value);
-    const name = UI.inputName.value.trim() || "这位同学";
     UI.createSummary.innerHTML = `
       你将以 <b>2026 级新生</b> 的身份，进入 <b>${esc(college.name)}</b> 的
-      <b>${esc(college.major)}</b> 专业。来自 <b>${esc(home.name)}</b>，性格 <b>${esc(trait.name)}</b>。
+      <b>${esc(major)}</b> 专业。来自 <b>${esc(home.name)}</b>，性格 <b>${esc(trait.name)}</b>。
       <div class="summary-tags">
         <span class="summary-tag">${esc(college.bonusText)}</span>
         <span class="summary-tag">${esc(trait.bonusText)}</span>
@@ -493,6 +546,10 @@
   function showCreate() {
     showScreen("create");
     if (!UI.inputName.value) UI.inputName.value = randomName();
+    const college = getCollege(selected.college);
+    if (!selected.major || !college.majors.includes(selected.major)) {
+      selected.major = college.majors[0];
+    }
     renderCollegeOptions();
     renderTraitOptions();
     updateCreateSummary();
@@ -548,7 +605,7 @@
     stats.money = Math.max(0, stats.money);
 
     return {
-      version: 1,
+      version: 2,
       player: {
         name,
         gender: selected.gender,
@@ -557,7 +614,7 @@
         college: college.id,
         collegeId: college.id,
         collegeName: college.name,
-        major: college.major,
+        major: selected.major || college.majors[0],
         trait: trait.id,
         traitName: trait.name,
         studentId: `2026${randInt(100000, 999999)}`
@@ -627,7 +684,7 @@
       finishGame();
       return;
     }
-    if (state.turn >= 4) {
+    if (state.turn >= TURNS_PER_SEMESTER) {
       settleSemester(false);
       return;
     }
@@ -699,7 +756,7 @@
 
   function renderEvent(event) {
     const info = semesterInfo(state.semester);
-    const week = info.weeks[state.turn] || "第16周";
+    const week = info.weeks[state.turn] || "第16-18周";
     const text = esc(typeText(event.text));
     const body = state.pending
       ? renderResultBody(event)
@@ -940,11 +997,12 @@
     }
 
     state.turn += 1;
-    if (state.turn >= 4) {
+    if (state.turn >= TURNS_PER_SEMESTER) {
       save({ silent: true });
       settleSemester(false);
       return;
     }
+    state.stats.energy = clamp(state.stats.energy + 5, 0, 100);
     save({ silent: true });
     startTurn();
   }
@@ -977,9 +1035,9 @@
     const trait = getTrait(state.player.trait);
     const home = getHometown(state.player.hometown);
 
-    let base = 1.7
-      + state.study * 0.18
-      + state.stats.knowledge * 0.011
+    let base = 1.6
+      + state.study * 0.14
+      + state.stats.knowledge * 0.010
       + (trait.studyBonus || 0)
       + (college.studyBonus || 0)
       + rand(-0.1, 0.1);
@@ -1019,7 +1077,7 @@
     const expense = 1200;
     const moneyDelta = allowance - expense + scholarship;
     state.stats.money = Math.max(0, state.stats.money + moneyDelta);
-    state.stats.energy = clamp(state.stats.energy + 25, 0, 100);
+    state.stats.energy = clamp(state.stats.energy + 30, 0, 100);
     if (state.stats.mood < 50) state.stats.mood = clamp(state.stats.mood + 6, 0, 100);
     if (state.stats.mood > 80) state.stats.mood = clamp(state.stats.mood - 3, 0, 100);
 
@@ -1079,24 +1137,29 @@
     const majorPool = college.courses || [];
     const rows = [];
     const seen = new Set();
-
-    for (let i = 0; i < 2; i += 1) {
-      const name = majorPool[(semesterIndex * 2 + i) % majorPool.length] || "专业导论";
-      if (seen.has(name)) continue;
+    const add = (name, credit, type) => {
+      if (!name || seen.has(name)) return false;
       seen.add(name);
-      rows.push(makeCourse(name, 3, baseGpa, "专业必修"));
+      rows.push(makeCourse(name, credit, baseGpa, type));
+      return true;
+    };
+
+    let majorAdded = 0;
+    for (let i = 0; i < majorPool.length * 2 && majorAdded < 3; i += 1) {
+      if (add(majorPool[(semesterIndex * 3 + i) % majorPool.length], 3, "专业必修")) {
+        majorAdded += 1;
+      }
     }
 
-    for (let i = 0; i < 2; i += 1) {
-      const name = JNU.commonCourses[(semesterIndex + i * 3) % JNU.commonCourses.length];
-      if (seen.has(name)) continue;
-      seen.add(name);
-      rows.push(makeCourse(name, 2, baseGpa, "通识必修"));
+    let commonAdded = 0;
+    for (let i = 0; i < JNU.commonCourses.length * 2 && commonAdded < 2; i += 1) {
+      if (add(JNU.commonCourses[(semesterIndex + i * 3) % JNU.commonCourses.length], 2, "通识必修")) {
+        commonAdded += 1;
+      }
     }
 
     const electives = JNU.electiveCourses.filter((name) => !seen.has(name));
-    const elective = electives.length ? pick(electives) : "通识选修";
-    rows.push(makeCourse(elective, 2, baseGpa, "通识选修"));
+    add(electives.length ? pick(electives) : "通识选修", 2, "通识选修");
 
     return rows;
   }
@@ -1335,7 +1398,7 @@
 
     const study = Math.round(state.study);
     UI.studyValue.textContent = study;
-    UI.studyBar.style.width = `${clamp(study / 12 * 100, 0, 100)}%`;
+    UI.studyBar.style.width = `${clamp(study / 18 * 100, 0, 100)}%`;
 
     requestAnimationFrame(() => {
       $$("#stat-list .stat-track i").forEach((bar) => {
@@ -1370,7 +1433,7 @@
   }
 
   function renderSemesterDots() {
-    UI.turnLabel.textContent = currentWeekLabel();
+    UI.turnLabel.textContent = `${currentWeekLabel()} · ${Math.min(state.turn + 1, TURNS_PER_SEMESTER)}/${TURNS_PER_SEMESTER}`;
     UI.semesterDots.innerHTML = JNU.semesters.map((info, index) => {
       const current = index === state.semester;
       const past = index < state.semester;

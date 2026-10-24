@@ -113,8 +113,16 @@
           </section>
 
           <section class="create-section">
-            <div class="section-title"><span>02</span><h3>选择学院</h3><em>不同学院，不同烦恼</em></div>
+            <div class="section-title"><span>02</span><h3>选择学院与专业</h3><em>20 个学院 · 55 个专业</em></div>
             <div class="college-grid" id="college-grid" role="radiogroup" aria-label="学院"></div>
+            <div class="college-detail" id="college-detail"></div>
+            <div class="major-block">
+              <div class="major-head">
+                <span>选择专业</span>
+                <em id="major-count"></em>
+              </div>
+              <div class="major-grid" id="major-grid" role="radiogroup" aria-label="专业"></div>
+            </div>
           </section>
 
           <section class="create-section">
@@ -249,9 +257,12 @@
   <div class="modal-root" id="modal-root"></div>
   <div class="toast-root" id="toast-root" aria-live="polite"></div>
 
+  <script src="colleges.js"></script>
   <script src="data.js"></script>
   <script src="events-fixed.js"></script>
+  <script src="events-fixed-extra.js"></script>
   <script src="events-random.js"></script>
+  <script src="events-college.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
