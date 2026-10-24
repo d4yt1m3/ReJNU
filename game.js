@@ -736,17 +736,17 @@
 
     return `
       <div class="event-choices">
-        ${choices.map(({ choice, index }) => renderChoice(choice, index)).join("")}
+        ${choices.map(({ choice, index }, visibleIndex) => renderChoice(choice, index, visibleIndex)).join("")}
       </div>
     `;
   }
 
-  function renderChoice(choice, index) {
+  function renderChoice(choice, index, keyIndex) {
     const requirement = checkRequirement(choice.require);
     const disabled = !requirement.ok;
     return `
       <button type="button" class="choice" data-index="${index}" ${disabled ? "disabled" : ""}>
-        <span class="choice-key">${"甲乙丙丁戊"[index] || index + 1}</span>
+        <span class="choice-key">${"甲乙丙丁戊"[keyIndex] || keyIndex + 1}</span>
         <span class="choice-body">
           <strong>${esc(choice.label)}</strong>
           <span class="choice-hint">${formatHint(choice.hint || "")}</span>
