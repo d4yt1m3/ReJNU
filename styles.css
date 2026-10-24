@@ -2,23 +2,8 @@
    江南大学本科生模拟器 · 视觉系统
    设计语言沿用 CampusHonor：霞鹜文楷、校园实景、蓝色主色、
    半透明白卡片与细腻边框；游戏层增加印章、纸感与江南意象。
+   字体由 fonts.css 以内嵌子集加载，确保 file:// 直接打开也能生效。
    ========================================================= */
-
-@font-face {
-  font-family: "LXGW WenKai Mono";
-  src: url("assets/fonts/LXGWWenKaiMono-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "LXGW WenKai Mono";
-  src: url("assets/fonts/LXGWWenKaiMono-Medium.woff2") format("woff2");
-  font-weight: 500 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 :root {
   /* 品牌色 */

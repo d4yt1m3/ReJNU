@@ -43,8 +43,9 @@
 ├── events-random.js      # 59 个随机事件
 ├── game.js               # 回合引擎、结算、存档、图鉴、音效
 ├── favicon.svg           # 自绘校名意象图标（曲水桥 + 日）
+├── fonts.css             # 内嵌子集字体（保证 file:// 直接打开也生效）
 ├── assets/
-│   ├── fonts/            # 霞鹜文楷 Mono（LXGW WenKai Mono）
+│   ├── fonts/            # 霞鹜文楷 Mono 源字体与按游戏字符集生成的子集
 │   └── img/campus-bg.jpg # 江南大学蠡湖校区航拍背景
 └── .preview/             # 本地测试截图（已 gitignore）
 ```
