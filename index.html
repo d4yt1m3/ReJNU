@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="江南大学本科生模拟器：在蠡湖畔，把四年过成一场没有存档的青春。">
+  <meta name="theme-color" content="#1f5fa8">
+  <title>江南大学本科生模拟器</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preload" href="assets/fonts/LXGWWenKaiMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/LXGWWenKaiMono-Medium.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-photo" aria-hidden="true"></div>
+  <div class="bg-wash" aria-hidden="true"></div>
+  <div class="petals" id="petals" aria-hidden="true"></div>
+
+  <header class="topbar" id="topbar" hidden>
+    <div class="topbar-left">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none">
+          <circle cx="24" cy="11" r="4.2" stroke="currentColor" stroke-width="2"/>
+          <path d="M6 34c5.5-9 11-9 16.5 0 5.5-9 11-9 16.5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M9 40h30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-title">江南大学 · 本科人生模拟器</span>
+        <span class="brand-sub" id="topbar-sub">2026级 · 大一上</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="save-state" id="save-state">已自动存档</span>
+      <button class="icon-btn" id="btn-sound" type="button" aria-label="开关音效" title="开关音效">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6.5 9H3v6h3.5L11 19z"/><path d="M15 9.5a4 4 0 0 1 0 5"/><path d="M17.8 7a7.5 7.5 0 0 1 0 10"/></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6.5 9H3v6h3.5L11 19z"/><path d="m16 10 4 4"/><path d="m20 10-4 4"/></svg>
+      </button>
+      <button class="icon-btn icon-btn-text" id="btn-gallery" type="button" title="结局与成就">图鉴</button>
+      <button class="icon-btn icon-btn-text" id="btn-menu" type="button" title="菜单">菜单</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- 标题页 -->
+    <section class="screen screen-title" id="screen-title">
+      <div class="title-poem" aria-hidden="true">
+        <span>太湖之滨</span>
+        <span>蠡湖之畔</span>
+        <i></i>
+        <span>笃学尚行</span>
+        <span>止于至善</span>
+      </div>
+
+      <div class="login-card title-card">
+        <div class="title-logo" aria-hidden="true">
+          <svg viewBox="0 0 72 72" fill="none">
+            <rect x="3" y="3" width="66" height="66" rx="16" stroke="currentColor" stroke-width="1.4" opacity=".28"/>
+            <circle cx="36" cy="20" r="5.4" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M13 49c7.5-12 15-12 23 0 8-12 15.5-12 23 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M17 57h38" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="title-kicker">2026 级新生 · 本科四年</p>
+        <h1>江南大学<span>本科生模拟器</span></h1>
+        <p class="title-desc">从曲水桥到长广溪，把四年过成一场<br class="br-desktop">没有存档的青春。</p>
+        <div class="title-actions">
+          <button class="btn btn-primary btn-lg" id="btn-new" type="button">开始大学生活</button>
+          <button class="btn btn-secondary" id="btn-continue" type="button" hidden>继续上次存档</button>
+        </div>
+        <div class="title-meta">
+          <button class="link-btn" id="btn-gallery-title" type="button">结局图鉴 <span id="gallery-count">0 / 0</span></button>
+          <span class="dot">·</span>
+          <span>本地单机 · 无需登录</span>
+        </div>
+        <p class="title-foot">— 笃学尚行，止于至善 —</p>
+      </div>
+
+      <p class="title-note">“食品学院的酸奶、设计学院的通宵、物联网的焊锡味，<br>都是江大的味道。”</p>
+    </section>
+
+    <!-- 新生注册 -->
+    <section class="screen screen-create" id="screen-create" hidden>
+      <div class="create-wrap">
+        <header class="page-head">
+          <p class="eyebrow">新生报到 · 2026</p>
+          <h2>先把你自己，填进这张录取通知书</h2>
+          <p>四年后的结局，从这几个选项开始。</p>
+        </header>
+
+        <div class="card create-card">
+          <section class="create-section">
+            <div class="section-title"><span>01</span><h3>基本信息</h3></div>
+            <div class="basic-grid">
+              <label class="field">
+                <span class="field-label">姓名</span>
+                <span class="name-row">
+                  <input class="input" id="input-name" type="text" maxlength="12" autocomplete="off" placeholder="请填写姓名">
+                  <button class="btn btn-ghost btn-dice" id="btn-random-name" type="button" title="随机姓名">换一个</button>
+                </span>
+              </label>
+              <div class="field">
+                <span class="field-label">性别</span>
+                <div class="segmented" id="gender-group" role="group" aria-label="性别">
+                  <button type="button" class="seg is-active" data-value="男">男</button>
+                  <button type="button" class="seg" data-value="女">女</button>
+                </div>
+              </div>
+              <label class="field">
+                <span class="field-label">生源地</span>
+                <select class="select" id="select-home"></select>
+              </label>
+            </div>
+          </section>
+
+          <section class="create-section">
+            <div class="section-title"><span>02</span><h3>选择学院</h3><em>不同学院，不同烦恼</em></div>
+            <div class="college-grid" id="college-grid" role="radiogroup" aria-label="学院"></div>
+          </section>
+
+          <section class="create-section">
+            <div class="section-title"><span>03</span><h3>选择性格</h3><em>决定你如何度过这四年</em></div>
+            <div class="trait-grid" id="trait-grid" role="radiogroup" aria-label="性格"></div>
+          </section>
+
+          <div class="create-summary" id="create-summary"></div>
+
+          <button class="btn btn-primary btn-lg btn-enroll" id="btn-enroll" type="button">报到，开始四年</button>
+          <p class="create-tip">所有进度自动保存在本机浏览器，可随时回来继续。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 游戏主界面 -->
+    <section class="screen screen-game" id="screen-game" hidden>
+      <div class="game-wrap">
+        <aside class="col-left">
+          <section class="card student-card" id="student-card">
+            <div class="student-top">
+              <div class="avatar" id="avatar" aria-hidden="true">江</div>
+              <div class="student-name-wrap">
+                <h2 id="student-name">—</h2>
+                <p id="student-major">—</p>
+              </div>
+            </div>
+            <dl class="id-meta">
+              <div><dt>学号</dt><dd id="student-id">—</dd></div>
+              <div><dt>学院</dt><dd id="student-college">—</dd></div>
+              <div><dt>生源地</dt><dd id="student-home">—</dd></div>
+              <div><dt>性格</dt><dd id="student-trait">—</dd></div>
+            </dl>
+            <div class="id-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <p class="student-motto" id="student-motto">笃学尚行，止于至善</p>
+          </section>
+
+          <section class="card stats-card">
+            <header class="card-head">
+              <h3>成长档案</h3>
+              <span class="chip" id="semester-tag">大一上</span>
+            </header>
+            <div class="gpa-block">
+              <div class="gpa-main">
+                <span class="gpa-label">平均绩点</span>
+                <strong id="stat-gpa">—</strong>
+                <span class="gpa-max">/ 4.0</span>
+              </div>
+              <span class="gpa-rank" id="gpa-rank">暂无排名</span>
+            </div>
+            <div class="stat-list" id="stat-list"></div>
+            <div class="semester-study">
+              <span>本学期学习投入</span>
+              <div class="study-track"><i id="study-bar"></i></div>
+              <b id="study-value">0</b>
+            </div>
+          </section>
+        </aside>
+
+        <section class="col-center">
+          <div class="turn-line">
+            <span class="turn-label" id="turn-label">第 1-4 周</span>
+            <div class="semester-dots" id="semester-dots" aria-label="学期进度"></div>
+          </div>
+          <article class="card event-card" id="event-card" aria-live="polite"></article>
+          <p class="event-foot-note" id="event-foot-note">每一次选择，都会在四年后的档案里留下痕迹。</p>
+        </section>
+
+        <aside class="col-right">
+          <section class="card timeline-card">
+            <header class="card-head">
+              <h3>四年日历</h3>
+              <span class="chip chip-plain">2026 — 2030</span>
+            </header>
+            <ol class="timeline" id="timeline"></ol>
+          </section>
+          <section class="card ach-card">
+            <header class="card-head">
+              <h3>成就</h3>
+              <span class="chip chip-plain" id="ach-count">0 / 0</span>
+            </header>
+            <div class="ach-grid" id="ach-grid"></div>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 毕业结局 -->
+    <section class="screen screen-ending" id="screen-ending" hidden>
+      <div class="ending-wrap">
+        <article class="diploma" id="diploma">
+          <div class="diploma-head">
+            <span>江南大学 · 本科毕业档案</span>
+            <span id="ending-class">CLASS OF 2030</span>
+          </div>
+          <p class="eyebrow" id="ending-eyebrow">毕业去向</p>
+          <h1 class="ending-title" id="ending-title">—</h1>
+          <div class="ending-rarity" id="ending-rarity">—</div>
+          <p class="ending-desc" id="ending-desc">—</p>
+
+          <div class="ending-stats" id="ending-stats"></div>
+
+          <div class="ending-section">
+            <h3>四年大事记</h3>
+            <ol class="ending-timeline" id="ending-timeline"></ol>
+          </div>
+
+          <div class="ending-section">
+            <h3>最终评价</h3>
+            <p class="ending-comment" id="ending-comment">—</p>
+          </div>
+
+          <div class="diploma-foot">
+            <div class="seal" aria-hidden="true"><span>江南</span><b>毕业</b></div>
+            <div class="diploma-sign">
+              <span id="ending-name">—</span>
+              <small>二〇三〇年六月 · 无锡</small>
+            </div>
+          </div>
+        </article>
+
+        <div class="ending-actions">
+          <button class="btn btn-primary" id="btn-restart" type="button">再读一次</button>
+          <button class="btn btn-secondary" id="btn-gallery-ending" type="button">查看图鉴</button>
+          <button class="btn btn-ghost" id="btn-back-title" type="button">回到标题</button>
+        </div>
+        <p class="ending-save">结局与成就已收录，可在图鉴中查看。</p>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-root" id="modal-root"></div>
+  <div class="toast-root" id="toast-root" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="events-fixed.js"></script>
+  <script src="events-random.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
