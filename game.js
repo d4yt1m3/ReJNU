@@ -33,7 +33,6 @@
     inputName: $("#input-name"),
     btnRandomName: $("#btn-random-name"),
     btnRandomAll: $("#btn-random-all"),
-    randomHint: $("#random-hint"),
     genderGroup: $("#gender-group"),
     selectHome: $("#select-home"),
     collegeGrid: $("#college-grid"),
@@ -63,7 +62,6 @@
     turnLabel: $("#turn-label"),
     semesterDots: $("#semester-dots"),
     eventCard: $("#event-card"),
-    eventFootNote: $("#event-foot-note"),
     timeline: $("#timeline"),
     achGrid: $("#ach-grid"),
     achCount: $("#ach-count"),
@@ -85,7 +83,6 @@
   };
 
   const RARITY_LABEL = { common: "普通", rare: "稀有", legend: "传说", secret: "隐藏" };
-  const RANDOM_HINT_DEFAULT = "让命运替你填一张新生档案，可以反复重掷。";
   const STAT_META = {
     knowledge: { label: "学识", icon: "book" },
     energy: { label: "精力", icon: "bolt" },
@@ -355,7 +352,6 @@
       if (!button) return;
       $$(".seg", UI.genderGroup).forEach((seg) => seg.classList.toggle("is-active", seg === button));
       selected.gender = button.dataset.value;
-      resetRandomHint();
       updateCreateSummary();
     });
 
@@ -366,7 +362,6 @@
       const college = getCollege(selected.college);
       selected.major = college.majors[0];
       renderCollegeOptions();
-      resetRandomHint();
       updateCreateSummary();
       play("click");
     });
@@ -376,7 +371,6 @@
       if (!card) return;
       selected.major = card.dataset.major;
       renderMajorOptions();
-      resetRandomHint();
       updateCreateSummary();
       play("click");
     });
@@ -386,13 +380,11 @@
       if (!card) return;
       selected.trait = card.dataset.id;
       renderTraitOptions();
-      resetRandomHint();
       updateCreateSummary();
       play("click");
     });
 
     UI.selectHome.addEventListener("change", () => {
-      resetRandomHint();
       updateCreateSummary();
     });
 
@@ -578,7 +570,6 @@
     }
     renderCollegeOptions();
     renderTraitOptions();
-    resetRandomHint();
     updateCreateSummary();
     window.setTimeout(() => UI.inputName.focus(), 120);
   }
@@ -612,12 +603,6 @@
     return pick(surnames) + pick(given);
   }
 
-  function resetRandomHint() {
-    if (!UI.randomHint) return;
-    UI.randomHint.textContent = RANDOM_HINT_DEFAULT;
-    UI.randomHint.classList.remove("is-filled");
-  }
-
   function randomizeProfile() {
     const gender = pick(["男", "女"]);
     const home = pick(JNU.hometowns);
@@ -638,10 +623,6 @@
     renderCollegeOptions();
     renderTraitOptions();
     updateCreateSummary();
-    if (UI.randomHint) {
-      UI.randomHint.textContent = `命运选择了：${college.name} · ${major} · ${trait.name}`;
-      UI.randomHint.classList.add("is-filled");
-    }
 
     if (UI.btnRandomAll) {
       UI.btnRandomAll.classList.remove("is-rolling");
@@ -907,12 +888,6 @@
       ${body}
     `;
 
-    UI.eventFootNote.textContent = state.pending
-      ? "选择已经做出，没有撤回键。"
-      : event.ai
-        ? "本回合由 AI 生成 · 固定里程碑仍由剧本控制。"
-        : "每一次选择，都会在四年后的档案里留下痕迹。";
-
     UI.eventCard.style.animation = "none";
     // 触发重排，让每张事件卡都有一次入场动画
     void UI.eventCard.offsetWidth;
@@ -923,7 +898,6 @@
   function renderAiLoading(config) {
     const info = semesterInfo(state.semester);
     const week = info.weeks[state.turn] || "第16-18周";
-    const label = `${JNU_AI.modelLabel(config.model)}${config.thinking ? " · 思考模式" : " · 非思考模式"}`;
 
     UI.eventCard.innerHTML = `
       <div class="event-head">
@@ -941,18 +915,15 @@
           <span class="ai-orb" aria-hidden="true"></span>
           <div>
             <p class="ai-loading-title">正在写这一周</p>
-            <p class="ai-loading-sub">${esc(label)} · 结合你的专业、状态与最近经历</p>
           </div>
         </div>
         <div class="sk-lines" aria-hidden="true">
           <i style="width:94%"></i><i style="width:88%"></i><i style="width:96%"></i><i style="width:62%"></i>
         </div>
         <div class="ai-loading-choices" aria-hidden="true"><i></i><i></i><i></i></div>
-        <p class="ai-loading-note">生成失败或超时会自动使用本地事件。</p>
       </div>
     `;
 
-    UI.eventFootNote.textContent = "AI 正在写作，固定节点不会被打断。";
     UI.eventCard.style.animation = "none";
     void UI.eventCard.offsetWidth;
     UI.eventCard.style.animation = "";
@@ -1589,7 +1560,7 @@
   function renderTimeline() {
     const logs = state.logs.slice(-14);
     if (!logs.length) {
-      UI.timeline.innerHTML = '<li class="timeline-empty" style="display:block">还没有写下第一笔。<br>你的四年，从下一次选择开始。</li>';
+      UI.timeline.innerHTML = '<li class="timeline-empty" style="display:block">暂无记录</li>';
       return;
     }
     UI.timeline.innerHTML = logs.map((log) => `
@@ -1732,7 +1703,6 @@
         <button type="button" class="modal-close" aria-label="关闭">×</button>
         <p class="eyebrow">JNU ARCHIVE · 2026—2030</p>
         <h2>结局与成就图鉴</h2>
-        <p>每一种选择，都通向一个不一样的四年。</p>
       </div>
       <div class="gallery-body">
         <div class="gallery-tabs">
@@ -1777,7 +1747,7 @@
   function openAISettings() {
     const config = JNU_AI.loadConfig();
     const modelOptions = JNU_AI.MODELS
-      .map((model) => `<option value="${esc(model.id)}" ${model.id === config.model ? "selected" : ""}>${esc(model.label)} · ${esc(model.note)}</option>`)
+      .map((model) => `<option value="${esc(model.id)}" ${model.id === config.model ? "selected" : ""}>${esc(model.label)}</option>`)
       .join("");
 
     openModal(`
@@ -1785,13 +1755,11 @@
         <button type="button" class="modal-close" aria-label="关闭">×</button>
         <p class="eyebrow">DEEPSEEK · 可选</p>
         <h2>AI 剧情设置</h2>
-        <p>固定里程碑仍由剧本控制，只有随机回合交给 DeepSeek 生成。</p>
       </div>
       <div class="ai-body">
         <label class="ai-toggle-row">
           <span>
             <b>开启 AI 剧情</b>
-            <small>每个非固定回合调用一次 DeepSeek；失败会自动回退本地事件</small>
           </span>
           <input type="checkbox" class="switch-input" id="ai-enabled" ${config.enabled ? "checked" : ""}>
         </label>
@@ -1800,7 +1768,6 @@
           <div class="ai-provider-mark" aria-hidden="true">DS</div>
           <div class="ai-provider-main">
             <b>DeepSeek 官方接口</b>
-            <small>${esc(JNU_AI.BASE_URL)}</small>
           </div>
           <span class="ai-provider-badge">已固定</span>
         </div>
@@ -1808,13 +1775,11 @@
         <label class="field ai-field">
           <span class="field-label">模型</span>
           <select class="select ai-mono" id="ai-model">${modelOptions}</select>
-          <p class="ai-model-hint" id="ai-model-hint"></p>
         </label>
 
         <label class="ai-toggle-row ai-toggle-sub">
           <span>
             <b>思考模式</b>
-            <small>开启后先推理再写，更慢也更贵；关闭时直接生成，适合连续回合</small>
           </span>
           <input type="checkbox" class="switch-input" id="ai-thinking" ${config.thinking ? "checked" : ""}>
         </label>
@@ -1827,8 +1792,6 @@
             value="${esc(config.key)}" placeholder="sk-...">
         </label>
 
-        <p class="ai-hint">只使用 DeepSeek 官方接口，Base URL 固定为 ${esc(JNU_AI.BASE_URL)}。密钥只保存在本机浏览器 localStorage，不会写入存档；公共电脑上请不要保存。请求使用 JSON Output（response_format=json_object），空内容或格式错误会自动重试一次，仍失败则回退本地事件。思考模式按官方文档使用 thinking 与 reasoning_effort，耗时和费用都会更高。更多说明见 <a class="ai-doc-link" href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noopener noreferrer">DeepSeek 官方文档</a>。</p>
-
         <div class="ai-status" id="ai-status"></div>
 
         <div class="ai-actions">
@@ -1838,8 +1801,6 @@
 
         <div class="ai-foot">
           <button type="button" class="link-btn" id="ai-clear-key">清除已保存的密钥</button>
-          <span>·</span>
-          <span>AI 生成失败时自动回退本地事件</span>
         </div>
       </div>
     `, { className: "ai-modal", dismissible: true });
@@ -1848,7 +1809,6 @@
     const modelSelect = $("#ai-model");
     const thinkingInput = $("#ai-thinking");
     const keyInput = $("#ai-key");
-    const modelHint = $("#ai-model-hint");
     const status = $("#ai-status");
     const testButton = $("#ai-test");
     const saveButton = $("#ai-save");
@@ -1857,20 +1817,6 @@
       if (!status || !document.body.contains(status)) return;
       status.textContent = text || "";
       status.className = `ai-status${kind ? ` is-${kind}` : ""}`;
-    };
-
-    const updateModelHint = () => {
-      if (!modelHint) return;
-      const model = JNU_AI.MODELS.find((item) => item.id === modelSelect.value);
-      const mode = thinkingInput && thinkingInput.checked ? "思考模式" : "非思考模式";
-      if (!model) {
-        modelHint.textContent = "";
-        return;
-      }
-      const price = model.id === "deepseek-flash"
-        ? "输入约 ¥1/百万 tokens，输出约 ¥2/百万 tokens"
-        : "输入约 ¥3/百万 tokens，输出约 ¥6/百万 tokens";
-      modelHint.textContent = `${model.note} · 当前为${mode} · ${price}`;
     };
 
     const readForm = () => ({
@@ -1884,12 +1830,10 @@
     [modelSelect, thinkingInput].forEach((control) => {
       if (!control) return;
       control.addEventListener("change", () => {
-        updateModelHint();
         setStatus("", "");
         play("click");
       });
     });
-    updateModelHint();
 
     if (testButton) {
       testButton.addEventListener("click", async () => {
@@ -1957,7 +1901,6 @@
         <button type="button" class="modal-close" aria-label="关闭">×</button>
         <p class="eyebrow">PAUSE</p>
         <h2>暂停一下</h2>
-        <p>当前进度已自动保存在本机。</p>
       </div>
       <div class="menu-body">
         <div class="menu-list">
@@ -1965,19 +1908,18 @@
             <span><b>继续游戏</b><small>回到 ${esc(currentSemesterName())} · ${esc(currentWeekLabel())}</small></span><span>→</span>
           </button>
           <button type="button" class="menu-row" data-action="ai">
-            <span><b>AI 剧情</b><small>${esc(aiStatusText(aiConfig))} · 随机回合由模型生成</small></span><span>${aiConfig.enabled ? "设置" : "开启"}</span>
+            <span><b>AI 剧情</b><small>${esc(aiStatusText(aiConfig))}</small></span><span>${aiConfig.enabled ? "设置" : "开启"}</span>
           </button>
           <button type="button" class="menu-row" data-action="sound">
             <span><b>音效</b><small>当前：${meta.muted ? "关闭" : "开启"}</small></span><span>${meta.muted ? "开启" : "关闭"}</span>
           </button>
           <button type="button" class="menu-row" data-action="title">
-            <span><b>返回标题</b><small>进度会保留，可从标题页继续</small></span><span>→</span>
+            <span><b>返回标题</b></span><span>→</span>
           </button>
           <button type="button" class="menu-row" data-action="restart">
             <span><b>重新开始</b><small>覆盖当前存档，已解锁图鉴保留</small></span><span>→</span>
           </button>
         </div>
-        <p class="menu-foot">江南大学本科生模拟器 · 本地单机版<br>存档与图鉴保存在本机；开启 AI 后，当前档案摘要会发送给你配置的模型接口。</p>
       </div>
     `, { className: "menu-modal", dismissible: true });
 
@@ -2022,7 +1964,6 @@
         <button type="button" class="modal-close" aria-label="关闭">×</button>
         <p class="eyebrow">CONFIRM</p>
         <h2>${esc(title)}</h2>
-        <p>这一步无法撤回。</p>
       </div>
       <div class="menu-body">
         <p class="confirm-text">${esc(message)}</p>

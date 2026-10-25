@@ -15,8 +15,8 @@ const JNU_AI = (() => {
 
   // 2026-07-24 起 deepseek-chat / deepseek-reasoner 已弃用，改用当前模型名。
   const MODELS = [
-    { id: "deepseek-flash", label: "DeepSeek-V4.1 Flash", note: "响应更快，适合连续回合" },
-    { id: "deepseek-v4-pro", label: "DeepSeek-V4 Pro", note: "叙事更强，价格更高" }
+    { id: "deepseek-flash", label: "DeepSeek-V4.1 Flash" },
+    { id: "deepseek-v4-pro", label: "DeepSeek-V4 Pro" }
   ];
 
   const TIMEOUT_FAST = 90000;
