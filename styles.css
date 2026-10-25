@@ -278,20 +278,19 @@ body::after {
 }
 
 .brand-mark {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   flex: none;
   display: grid;
   place-items: center;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.36);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.1);
 }
 
-.brand-mark svg {
-  width: 28px;
-  height: 28px;
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(9, 30, 55, 0.2));
 }
 
 .brand-text {
@@ -468,15 +467,16 @@ body::after {
 }
 
 .title-logo {
-  width: 66px;
-  height: 66px;
+  width: 82px;
+  height: 82px;
   margin: 0 auto var(--space-3);
-  color: var(--brand);
 }
 
-.title-logo svg {
+.title-logo img {
   width: 100%;
   height: 100%;
+  display: block;
+  object-fit: contain;
 }
 
 .title-kicker {
@@ -2678,6 +2678,23 @@ body::after {
   background: linear-gradient(90deg, #17477f, var(--brand) 55%, #2a74c2);
 }
 
+.diploma > :not(.diploma-watermark) {
+  position: relative;
+  z-index: 1;
+}
+
+.diploma-watermark {
+  position: absolute;
+  top: 22px;
+  right: 28px;
+  width: 160px;
+  height: 160px;
+  opacity: 0.045;
+  z-index: 0;
+  pointer-events: none;
+  object-fit: contain;
+}
+
 .diploma-head {
   display: flex;
   align-items: center;
@@ -2977,13 +2994,12 @@ body::after {
     font-size: 10px;
   }
   .brand-mark {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
+    width: 34px;
+    height: 34px;
   }
-  .brand-mark svg {
-    width: 24px;
-    height: 24px;
+  .brand-logo {
+    width: 30px;
+    height: 30px;
   }
   .save-state {
     display: none;
@@ -2998,6 +3014,10 @@ body::after {
   }
   .title-card {
     padding: 34px 24px 26px;
+  }
+  .title-logo {
+    width: 70px;
+    height: 70px;
   }
   .title-card h1 {
     font-size: 34px;
@@ -3149,6 +3169,12 @@ body::after {
   }
   .diploma {
     padding: 24px 18px 26px;
+  }
+  .diploma-watermark {
+    width: 116px;
+    height: 116px;
+    top: 16px;
+    right: 14px;
   }
   .diploma-head {
     font-size: 9px;

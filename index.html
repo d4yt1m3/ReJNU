@@ -6,7 +6,9 @@
   <meta name="description" content="江南大学本科生模拟器：在蠡湖畔，把四年过成一场没有存档的青春。">
   <meta name="theme-color" content="#1f5fa8">
   <title>江南大学本科生模拟器</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="assets/img/jnu-logo.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/img/apple-touch-icon.png">
   <link rel="stylesheet" href="fonts.css">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -18,11 +20,7 @@
   <header class="topbar" id="topbar" hidden>
     <div class="topbar-left">
       <div class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 48 48" fill="none">
-          <circle cx="24" cy="11" r="4.2" stroke="currentColor" stroke-width="2"/>
-          <path d="M6 34c5.5-9 11-9 16.5 0 5.5-9 11-9 16.5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <path d="M9 40h30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
+        <img class="brand-logo" src="assets/img/jnu-logo-white.svg" alt="">
       </div>
       <div class="brand-text">
         <span class="brand-title">江南大学 · 本科人生模拟器</span>
@@ -53,12 +51,7 @@
 
       <div class="login-card title-card">
         <div class="title-logo" aria-hidden="true">
-          <svg viewBox="0 0 72 72" fill="none">
-            <rect x="3" y="3" width="66" height="66" rx="16" stroke="currentColor" stroke-width="1.4" opacity=".28"/>
-            <circle cx="36" cy="20" r="5.4" stroke="currentColor" stroke-width="1.8"/>
-            <path d="M13 49c7.5-12 15-12 23 0 8-12 15.5-12 23 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M17 57h38" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
+          <img src="assets/img/jnu-logo.svg" alt="">
         </div>
         <p class="title-kicker">2026 级新生 · 本科四年</p>
         <h1>江南大学<span>本科生模拟器</span></h1>
@@ -214,6 +207,7 @@
     <section class="screen screen-ending" id="screen-ending" hidden>
       <div class="ending-wrap">
         <article class="diploma" id="diploma">
+          <img class="diploma-watermark" src="assets/img/jnu-logo.svg" alt="" aria-hidden="true">
           <div class="diploma-head">
             <span>江南大学 · 本科毕业档案</span>
             <span id="ending-class">CLASS OF 2030</span>
