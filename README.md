@@ -2,7 +2,7 @@
 
 > 在蠡湖畔，把四年过成一场没有存档的青春。
 
-一款本地单机的文字模拟游戏。你将以 2026 级新生的身份进入江南大学，在八个学期、四十八个回合里做选择，最后拿到一份属于自己的毕业档案。除了手工剧本，也可以接入任意 OpenAI 兼容接口，让模型生成随机事件与选项。
+一款本地单机的文字模拟游戏。你将以 2026 级新生的身份进入江南大学，在八个学期、四十八个回合里做选择，最后拿到一份属于自己的毕业档案。除了手工剧本，也可以接入 DeepSeek 官方 API，让模型生成随机事件与选项。
 
 ---
 
@@ -32,27 +32,31 @@
 - **23 个结局**：普通、稀有、传说、隐藏四档，包含保研顶尖学府、考研上岸/调剂/二战、大厂/国企/体制内、出国、创业、美食博主、设计新星、电竞选手、校园歌手、支教、恋爱毕业等。
 - **26 个成就**：军训幸存者、满绩传说、干饭王、图书馆钉子户、脱单成功、第一作者等。
 - **自动存档**：进度保存在浏览器 `localStorage`，可随时从标题页继续。结局图鉴与成就跨周目保留。
-- **AI 剧情（可选）**：接入 OpenAI 兼容接口，随机回合的事件、3 个选项与结果由模型生成；输出经过 JSON 校验、字段白名单与数值钳制，失败时自动回退本地事件。
+- **AI 剧情（可选）**：接入 DeepSeek 官方 API，随机回合的事件、3 个选项与结果由模型生成；输出经过 JSON 校验、字段白名单与数值钳制，失败时自动回退本地事件。
 - **本地音效**：WebAudio 合成，无外部音频资源，可在顶栏或菜单关闭。
 
-## AI 剧情模式（可选）
+## AI 剧情模式（DeepSeek，可选）
 
-默认关闭，不配置也能完整游玩。开启后，军训、第一次小测、专业分流、毕业去向、毕设、答辩、毕业等固定节点仍由本地剧本控制，只有随机回合交给模型，避免 AI 改坏结局条件。
+默认关闭，不配置也能完整游玩。开启后，军训、第一次小测、专业分流、毕业去向、毕设、答辩、毕业等固定节点仍由本地剧本控制，只有随机回合交给 DeepSeek，避免 AI 改坏结局条件。
 
 1. 在标题页点「AI 剧情」，或在游戏菜单里选「AI 剧情」。
-2. 选择接口预设：DeepSeek、OpenAI、Moonshot、本地 Ollama 或自定义。
-3. 填写 Base URL、模型与 API Key，点「测试连接」，成功后保存。
+2. 选择模型：`deepseek-flash`（V4.1 Flash，快）或 `deepseek-v4-pro`（V4 Pro，强）；再决定是否开启「思考模式」。
+3. 填写 DeepSeek API Key。可在 [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) 创建，点「测试连接」成功后保存。
 4. 开始或继续游戏。每个随机回合会显示生成中的骨架屏，完成后事件卡上会出现「AI 生成」标记。
 
-配置说明：
+接口与参数依据 [DeepSeek 官方文档](https://api-docs.deepseek.com/zh-cn/)：
 
-- **DeepSeek / Moonshot**：已验证允许浏览器直连（含 `file://` 的 `Origin: null`）。默认预设为 DeepSeek。
-- **本地 Ollama**：无需密钥，默认 `http://127.0.0.1:11434/v1`；需先运行 `ollama serve`，并允许页面来源跨域。若页面通过 HTTPS 部署（如 GitHub Pages），浏览器会阻止访问 `http://127.0.0.1`，请在本地打开页面或使用 HTTPS 代理。
-- **OpenAI**：官方接口可能拦截浏览器跨域请求；若「测试连接」失败，可改用 Ollama 或把 Base URL 指向自建代理。
+- **接口固定**：Base URL 为 `https://api.deepseek.com`，请求 `POST /chat/completions`，使用 `Authorization: Bearer <key>`。当前版本只开放 DeepSeek，不再提供 OpenAI、Moonshot、Ollama 或自定义 Base URL。
+- **模型**：`deepseek-flash`（页面标注为 DeepSeek-V4.1 Flash）与 `deepseek-v4-pro`。官方已注明 `deepseek-chat` / `deepseek-reasoner` 于 2026-07-24 弃用；旧配置会自动迁移到 `deepseek-flash`。
+- **JSON 输出**：请求带 `response_format: {"type":"json_object"}`，Prompt 内含 `json` 字样、完整字段结构与示例。官方提示 JSON 模式可能返回空 content，因此空内容或格式错误会自动重试一次，再失败才回退本地事件。
+- **思考模式**：关闭时发送 `thinking: {"type":"disabled"}`，使用 `temperature: 1.3` 直接生成；开启时发送 `thinking: {"type":"enabled"}` 与 `reasoning_effort: "high"`。按官方说明，思考模式不支持 `temperature`，所以开启后不再发送该参数。
+- **输出上限**：非思考模式 `max_tokens` 为 4096，思考模式为 8192；`finish_reason` 为 `length`、`content_filter` 或 `insufficient_system_resource` 时不会重试，直接回退并提示。
+- **超时**：非思考模式 90 秒，思考模式 180 秒；超时后自动使用本地事件。
+- **跨域**：DeepSeek 官方接口已放行浏览器跨域请求，包括本地 HTTP 与 `file://` 的 `Origin: null`。若所在网络有代理、防火墙或企业网关，仍可能连接失败。
 - **密钥安全**：API Key 只保存在本机 `localStorage`，不会写入存档或上传到本项目。公共电脑上请不要保存密钥；设置里有「清除已保存的密钥」。
-- **数据范围**：开启 AI 后，当前学院、专业、性格、属性、近期事件标题与上一次选择摘要会发送给你配置的模型接口；不会发送存档全文或密钥。
-- **回退机制**：超时（45 秒）、无密钥、HTTP 错误、返回非 JSON、选项不足 3 个或数值非法时，本回合自动使用本地随机事件，并提示原因。
-- **成本**：一局大约 20–30 个随机回合会触发请求，具体费用取决于所选模型；同一回合生成后会写入存档，刷新不会重复请求。
+- **数据范围**：开启 AI 后，学院、专业、性格、生源地、属性、近期事件标题与上一次选择摘要会发送给 DeepSeek；不会发送存档全文或密钥。
+- **错误提示**：401 Key 无效、402 余额不足、429 速率上限、500/503 服务异常会给出对应提示，并回退本地事件。
+- **成本**：按官方当前价格，Flash 输入约 ¥1/百万 tokens、输出约 ¥2/百万 tokens；Pro 输入约 ¥3/百万 tokens、输出约 ¥6/百万 tokens。一局大约 20–30 个随机回合会请求模型；同一回合生成后会写入存档，刷新不会重复请求。
 - **可控字段**：模型只能修改六项属性与有限的状态标签（如科研、恋爱、食堂/图书馆/实习计数），不能直接设置保研结果、offer、毕业去向或结局。
 
 ## 文件结构
@@ -67,7 +71,7 @@
 ├── events-fixed-extra.js # 8 个中段固定节点（小测/专业分流/去向检查/开题）
 ├── events-random.js      # 59 个基础随机事件
 ├── events-college.js     # 12 个学院专属事件
-├── ai.js                 # AI 剧情：配置、Prompt、请求、校验与回退
+├── ai.js                 # DeepSeek 接入：配置、Prompt、JSON 请求、校验与回退
 ├── game.js               # 回合引擎、结算、存档、图鉴、音效
 ├── fonts.css             # 内嵌子集字体（保证 file:// 直接打开也生效）
 ├── assets/
@@ -98,13 +102,19 @@
 - [江南大学新闻网：曲水桥与濠上亭](http://m.toutiao.com/group/7641174262165930502/)
 - [江南大学新闻网：百团大战](https://news.jiangnan.edu.cn/info/1095/104203.htm)
 - [学信网 GPA 算法名单（江南大学为 4.0 制）](https://www.chsi.com.cn/xlrz/external/gpaAlgorithmList.jsp)
+- [DeepSeek API：首次调用 API](https://api-docs.deepseek.com/zh-cn/)
+- [DeepSeek API：JSON Output](https://api-docs.deepseek.com/zh-cn/guides/json_mode)
+- [DeepSeek API：思考模式](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode/)
+- [DeepSeek API：错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes)
+- [DeepSeek API：模型 & 价格](https://api-docs.deepseek.com/zh-cn/quick_start/pricing)
 
 ## 已知限制
 
-- 静态事件为手工编写，不是无限生成；AI 模式为可选功能，需要自备兼容 OpenAI 的接口与密钥，关闭时完全离线。
+- 静态事件为手工编写，不是无限生成；AI 模式为可选功能，当前只接入 DeepSeek 官方接口，需要自备 API Key，关闭时完全离线。
 - AI 生成内容可能重复、跑题或与设定不符；已做 JSON 结构、字段白名单与数值钳制，但不保证叙事质量。
-- 浏览器直连受服务商 CORS 限制：DeepSeek、Moonshot 与本地 Ollama 已验证；OpenAI 官方接口可能无法从浏览器直接调用，需要代理。
-- 开启 AI 后，档案摘要会发送到你配置的接口；API Key 只保存在本机 localStorage，请勿在公共电脑保存。
+- 浏览器直连依赖 DeepSeek 官方 CORS；若网络环境存在代理、防火墙或企业网关，仍可能连接失败。当前不提供其他模型或自定义接口。
+- 思考模式更慢也更贵，且按官方文档不支持 `temperature`；连续游玩建议关闭。
+- 开启 AI 后，档案摘要会发送给 DeepSeek；API Key 只保存在本机 localStorage，请勿在公共电脑保存。
 - 学院与专业按招生页整理，但只收录 20 个四年制本科招生学院；医学院（五年制）与马克思主义学院未纳入模拟。部分卓越班、中外合作项目未单列，55 个专业为游戏收录数。
 - 事件与结局是游戏化创作，部分校园细节经过压缩或戏谑处理，不能作为真实教务、保研或就业政策的参考。
 - 随机事件采用权重抽取，同一周目不一定能看完所有内容；多周目体验不同。AI 开启时随机事件会改为模型生成，部分依赖本地随机事件的状态标签可能更少见。

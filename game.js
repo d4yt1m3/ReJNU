@@ -923,8 +923,7 @@
   function renderAiLoading(config) {
     const info = semesterInfo(state.semester);
     const week = info.weeks[state.turn] || "第16-18周";
-    const preset = JNU_AI.PRESETS[config.preset];
-    const label = preset ? preset.label : config.model;
+    const label = `${JNU_AI.modelLabel(config.model)}${config.thinking ? " · 思考模式" : " · 非思考模式"}`;
 
     UI.eventCard.innerHTML = `
       <div class="event-head">
@@ -1761,8 +1760,7 @@
   function aiStatusText(config = JNU_AI.loadConfig()) {
     if (!config.enabled) return "未开启";
     if (!JNU_AI.hasCredentials(config)) return "待配置密钥";
-    const preset = JNU_AI.PRESETS[config.preset];
-    return `已开启 · ${preset ? preset.label : config.model}`;
+    return `已开启 · ${JNU_AI.modelLabel(config.model)}${config.thinking ? " · 思考" : ""}`;
   }
 
   function updateAiEntry() {
@@ -1773,57 +1771,63 @@
       ? ready ? "AI 剧情 · 已开启" : "AI 剧情 · 待配置"
       : "AI 剧情 · 未开启";
     UI.btnAiTitle.classList.toggle("is-on", ready);
-    UI.btnAiTitle.title = "配置 AI 剧情生成";
+    UI.btnAiTitle.title = "配置 DeepSeek 剧情生成";
   }
 
   function openAISettings() {
     const config = JNU_AI.loadConfig();
-    let activePreset = config.preset || "custom";
-
-    const presetButtons = Object.entries(JNU_AI.PRESETS)
-      .map(([id, preset]) => `
-        <button type="button" class="ai-preset ${id === activePreset ? "is-active" : ""}" data-preset="${id}">
-          ${esc(preset.label)}
-        </button>
-      `)
+    const modelOptions = JNU_AI.MODELS
+      .map((model) => `<option value="${esc(model.id)}" ${model.id === config.model ? "selected" : ""}>${esc(model.label)} · ${esc(model.note)}</option>`)
       .join("");
 
     openModal(`
       <div class="modal-head">
         <button type="button" class="modal-close" aria-label="关闭">×</button>
-        <p class="eyebrow">AI NARRATIVE · 可选</p>
+        <p class="eyebrow">DEEPSEEK · 可选</p>
         <h2>AI 剧情设置</h2>
-        <p>固定里程碑仍由剧本控制，只有随机回合交给模型生成。</p>
+        <p>固定里程碑仍由剧本控制，只有随机回合交给 DeepSeek 生成。</p>
       </div>
       <div class="ai-body">
         <label class="ai-toggle-row">
           <span>
             <b>开启 AI 剧情</b>
-            <small>每个非固定回合调用一次模型；失败会自动回退本地事件</small>
+            <small>每个非固定回合调用一次 DeepSeek；失败会自动回退本地事件</small>
           </span>
           <input type="checkbox" class="switch-input" id="ai-enabled" ${config.enabled ? "checked" : ""}>
         </label>
 
-        <div class="ai-preset-label">选择接口</div>
-        <div class="ai-presets" id="ai-presets">${presetButtons}</div>
+        <div class="ai-provider">
+          <div class="ai-provider-mark" aria-hidden="true">DS</div>
+          <div class="ai-provider-main">
+            <b>DeepSeek 官方接口</b>
+            <small>${esc(JNU_AI.BASE_URL)}</small>
+          </div>
+          <span class="ai-provider-badge">已固定</span>
+        </div>
 
-        <label class="field ai-field">
-          <span class="field-label">Base URL</span>
-          <input class="input ai-mono" id="ai-base" type="url" spellcheck="false" autocomplete="off"
-            value="${esc(config.baseUrl)}" placeholder="https://api.deepseek.com/v1">
-        </label>
         <label class="field ai-field">
           <span class="field-label">模型</span>
-          <input class="input ai-mono" id="ai-model" type="text" spellcheck="false" autocomplete="off"
-            value="${esc(config.model)}" placeholder="deepseek-chat">
-        </label>
-        <label class="field ai-field">
-          <span class="field-label">API Key</span>
-          <input class="input ai-mono" id="ai-key" type="password" spellcheck="false" autocomplete="off"
-            value="${esc(config.key)}" placeholder="${activePreset === "ollama" ? "本地 Ollama 可留空" : "sk-..."}">
+          <select class="select ai-mono" id="ai-model">${modelOptions}</select>
+          <p class="ai-model-hint" id="ai-model-hint"></p>
         </label>
 
-        <p class="ai-hint">密钥只保存在本机浏览器的 localStorage，不会发往你填写的接口之外的任何地方。公共电脑上请不要保存密钥。DeepSeek、Moonshot 与本地 Ollama 已验证可用于浏览器直连；OpenAI 官方接口可能拦截跨域请求，若提示“无法连接接口”，可改用本地 Ollama 或自建代理。</p>
+        <label class="ai-toggle-row ai-toggle-sub">
+          <span>
+            <b>思考模式</b>
+            <small>开启后先推理再写，更慢也更贵；关闭时直接生成，适合连续回合</small>
+          </span>
+          <input type="checkbox" class="switch-input" id="ai-thinking" ${config.thinking ? "checked" : ""}>
+        </label>
+
+        <label class="field ai-field">
+          <span class="field-label">API Key
+            <a class="ai-doc-link" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer">获取密钥</a>
+          </span>
+          <input class="input ai-mono" id="ai-key" type="password" spellcheck="false" autocomplete="off"
+            value="${esc(config.key)}" placeholder="sk-...">
+        </label>
+
+        <p class="ai-hint">只使用 DeepSeek 官方接口，Base URL 固定为 ${esc(JNU_AI.BASE_URL)}。密钥只保存在本机浏览器 localStorage，不会写入存档；公共电脑上请不要保存。请求使用 JSON Output（response_format=json_object），空内容或格式错误会自动重试一次，仍失败则回退本地事件。思考模式按官方文档使用 thinking 与 reasoning_effort，耗时和费用都会更高。更多说明见 <a class="ai-doc-link" href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noopener noreferrer">DeepSeek 官方文档</a>。</p>
 
         <div class="ai-status" id="ai-status"></div>
 
@@ -1841,9 +1845,10 @@
     `, { className: "ai-modal", dismissible: true });
 
     const enabled = $("#ai-enabled");
-    const baseInput = $("#ai-base");
-    const modelInput = $("#ai-model");
+    const modelSelect = $("#ai-model");
+    const thinkingInput = $("#ai-thinking");
     const keyInput = $("#ai-key");
+    const modelHint = $("#ai-model-hint");
     const status = $("#ai-status");
     const testButton = $("#ai-test");
     const saveButton = $("#ai-save");
@@ -1854,42 +1859,47 @@
       status.className = `ai-status${kind ? ` is-${kind}` : ""}`;
     };
 
+    const updateModelHint = () => {
+      if (!modelHint) return;
+      const model = JNU_AI.MODELS.find((item) => item.id === modelSelect.value);
+      const mode = thinkingInput && thinkingInput.checked ? "思考模式" : "非思考模式";
+      if (!model) {
+        modelHint.textContent = "";
+        return;
+      }
+      const price = model.id === "deepseek-flash"
+        ? "输入约 ¥1/百万 tokens，输出约 ¥2/百万 tokens"
+        : "输入约 ¥3/百万 tokens，输出约 ¥6/百万 tokens";
+      modelHint.textContent = `${model.note} · 当前为${mode} · ${price}`;
+    };
+
     const readForm = () => ({
       enabled: Boolean(enabled && enabled.checked),
-      preset: activePreset,
-      baseUrl: baseInput ? baseInput.value.trim() : "",
-      model: modelInput ? modelInput.value.trim() : "",
+      model: modelSelect ? modelSelect.value : config.model,
+      thinking: Boolean(thinkingInput && thinkingInput.checked),
       key: keyInput ? keyInput.value.trim() : "",
-      timeout: 45000
+      baseUrl: config.baseUrl
     });
 
-    $$("#modal-root .ai-preset").forEach((button) => {
-      button.addEventListener("click", () => {
-        const previousPreset = activePreset;
-        activePreset = button.dataset.preset;
-        $$("#modal-root .ai-preset").forEach((item) => item.classList.toggle("is-active", item === button));
-        const preset = JNU_AI.PRESETS[activePreset];
-        if (preset && activePreset !== "custom") {
-          if (baseInput) baseInput.value = preset.baseUrl;
-          if (modelInput) modelInput.value = preset.model;
-        }
-        if (keyInput) keyInput.placeholder = activePreset === "ollama" ? "本地 Ollama 可留空" : "sk-...";
-        const changed = previousPreset !== activePreset;
-        if (changed && keyInput) keyInput.value = "";
-        setStatus(changed ? "已切换接口，请重新填写 API Key。" : "", changed ? "pending" : "");
+    [modelSelect, thinkingInput].forEach((control) => {
+      if (!control) return;
+      control.addEventListener("change", () => {
+        updateModelHint();
+        setStatus("", "");
         play("click");
       });
     });
+    updateModelHint();
 
     if (testButton) {
       testButton.addEventListener("click", async () => {
         const form = readForm();
-        if (!form.baseUrl || !form.model) {
-          setStatus("请先填写 Base URL 与模型。", "err");
+        if (!form.key) {
+          setStatus("请先填写 DeepSeek API Key。", "err");
           return;
         }
         testButton.disabled = true;
-        setStatus("正在连接…", "pending");
+        setStatus("正在连接 DeepSeek…", "pending");
         try {
           const result = await JNU_AI.testConnection(form);
           setStatus(`连接成功 · ${result.ms}ms · ${result.preview}`, "ok");
@@ -1904,8 +1914,8 @@
     if (saveButton) {
       saveButton.addEventListener("click", () => {
         const form = readForm();
-        if (!form.baseUrl || !form.model) {
-          setStatus("请先填写 Base URL 与模型。", "err");
+        if (form.enabled && !form.key) {
+          setStatus("开启 AI 剧情需要填写 DeepSeek API Key。", "err");
           return;
         }
         if (!JNU_AI.saveConfig(form)) {
@@ -1916,10 +1926,8 @@
         updateAiEntry();
         updateCreateSummary();
         closeModal();
-        if (form.enabled && !JNU_AI.hasCredentials(form)) {
-          toast("AI 剧情已开启", "还缺少 API Key，随机回合会先使用本地事件。", "gold");
-        } else if (form.enabled) {
-          toast("AI 剧情已开启", "随机回合由 AI 生成，固定节点保持剧本控制。");
+        if (form.enabled) {
+          toast("AI 剧情已开启", `${JNU_AI.modelLabel(form.model)}${form.thinking ? " · 思考模式" : ""}，随机回合由 DeepSeek 生成。`);
         } else {
           toast("AI 剧情已关闭", "所有事件将使用本地剧本。");
         }
