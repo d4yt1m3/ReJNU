@@ -32,6 +32,8 @@
 
     inputName: $("#input-name"),
     btnRandomName: $("#btn-random-name"),
+    btnRandomAll: $("#btn-random-all"),
+    randomHint: $("#random-hint"),
     genderGroup: $("#gender-group"),
     selectHome: $("#select-home"),
     collegeGrid: $("#college-grid"),
@@ -83,6 +85,7 @@
   };
 
   const RARITY_LABEL = { common: "普通", rare: "稀有", legend: "传说", secret: "隐藏" };
+  const RANDOM_HINT_DEFAULT = "让命运替你填一张新生档案，可以反复重掷。";
   const STAT_META = {
     knowledge: { label: "学识", icon: "book" },
     energy: { label: "精力", icon: "bolt" },
@@ -342,11 +345,17 @@
       updateCreateSummary();
     });
 
+    UI.btnRandomAll.addEventListener("click", () => {
+      play("click");
+      randomizeProfile();
+    });
+
     UI.genderGroup.addEventListener("click", (event) => {
       const button = event.target.closest(".seg");
       if (!button) return;
       $$(".seg", UI.genderGroup).forEach((seg) => seg.classList.toggle("is-active", seg === button));
       selected.gender = button.dataset.value;
+      resetRandomHint();
       updateCreateSummary();
     });
 
@@ -357,6 +366,7 @@
       const college = getCollege(selected.college);
       selected.major = college.majors[0];
       renderCollegeOptions();
+      resetRandomHint();
       updateCreateSummary();
       play("click");
     });
@@ -366,6 +376,7 @@
       if (!card) return;
       selected.major = card.dataset.major;
       renderMajorOptions();
+      resetRandomHint();
       updateCreateSummary();
       play("click");
     });
@@ -375,11 +386,15 @@
       if (!card) return;
       selected.trait = card.dataset.id;
       renderTraitOptions();
+      resetRandomHint();
       updateCreateSummary();
       play("click");
     });
 
-    UI.selectHome.addEventListener("change", updateCreateSummary);
+    UI.selectHome.addEventListener("change", () => {
+      resetRandomHint();
+      updateCreateSummary();
+    });
 
     UI.btnEnroll.addEventListener("click", () => {
       const name = UI.inputName.value.trim();
@@ -563,6 +578,7 @@
     }
     renderCollegeOptions();
     renderTraitOptions();
+    resetRandomHint();
     updateCreateSummary();
     window.setTimeout(() => UI.inputName.focus(), 120);
   }
@@ -594,6 +610,45 @@
     const surnames = ["陈", "林", "沈", "周", "许", "顾", "苏", "陆", "江", "何", "唐", "宋", "叶", "程", "温", "贺"];
     const given = ["知远", "晚晴", "一舟", "南星", "清和", "予安", "星野", "听澜", "见微", "向晚", "舒窈", "嘉树", "云舟", "若谷", "明川", "静姝", "予同", "亦舟"];
     return pick(surnames) + pick(given);
+  }
+
+  function resetRandomHint() {
+    if (!UI.randomHint) return;
+    UI.randomHint.textContent = RANDOM_HINT_DEFAULT;
+    UI.randomHint.classList.remove("is-filled");
+  }
+
+  function randomizeProfile() {
+    const gender = pick(["男", "女"]);
+    const home = pick(JNU.hometowns);
+    const college = pick(JNU.colleges);
+    const major = pick(college.majors);
+    const trait = pick(JNU.traits);
+
+    UI.inputName.value = randomName();
+    selected.gender = gender;
+    $$(".seg", UI.genderGroup).forEach((seg) => {
+      seg.classList.toggle("is-active", seg.dataset.value === gender);
+    });
+    UI.selectHome.value = home.id;
+    selected.college = college.id;
+    selected.major = major;
+    selected.trait = trait.id;
+
+    renderCollegeOptions();
+    renderTraitOptions();
+    updateCreateSummary();
+    if (UI.randomHint) {
+      UI.randomHint.textContent = `命运选择了：${college.name} · ${major} · ${trait.name}`;
+      UI.randomHint.classList.add("is-filled");
+    }
+
+    if (UI.btnRandomAll) {
+      UI.btnRandomAll.classList.remove("is-rolling");
+      void UI.btnRandomAll.offsetWidth;
+      UI.btnRandomAll.classList.add("is-rolling");
+      window.setTimeout(() => UI.btnRandomAll.classList.remove("is-rolling"), 500);
+    }
   }
 
   function createState(name) {

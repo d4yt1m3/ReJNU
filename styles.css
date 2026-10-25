@@ -822,6 +822,66 @@ body::after {
   animation: card-rise 620ms var(--ease-out) both;
 }
 
+.random-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  padding: 13px 15px;
+  border: 1px dashed var(--brand-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(100deg, #f8fbff, #f1f7ff);
+}
+
+.random-bar-text {
+  min-width: 0;
+}
+
+.random-bar-text b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  letter-spacing: 0.02em;
+}
+
+.random-bar-text span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--ink-faint);
+}
+
+.random-bar-text span.is-filled {
+  color: var(--brand);
+  font-weight: 500;
+}
+
+.btn-random-all {
+  flex: none;
+  gap: 6px;
+}
+
+.btn-random-all svg {
+  width: 15px;
+  height: 15px;
+}
+
+.btn-random-all.is-rolling svg {
+  animation: random-roll 480ms var(--ease);
+}
+
+@keyframes random-roll {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
+}
+
 .create-section + .create-section {
   margin-top: var(--space-8);
   padding-top: var(--space-6);
@@ -3374,6 +3434,14 @@ body::after {
   }
   .create-card {
     padding: 20px 16px;
+  }
+  .random-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .btn-random-all {
+    width: 100%;
   }
   .basic-grid {
     grid-template-columns: 1fr;
