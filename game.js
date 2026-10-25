@@ -27,6 +27,7 @@
     btnNew: $("#btn-new"),
     btnContinue: $("#btn-continue"),
     btnGalleryTitle: $("#btn-gallery-title"),
+    btnAiTitle: $("#btn-ai-title"),
     galleryCount: $("#gallery-count"),
 
     inputName: $("#input-name"),
@@ -132,6 +133,8 @@
   let audioCtx = null;
   let modalDismissible = true;
   let saveFlashTimer = null;
+  let turnToken = 0;
+  let aiCredentialWarned = false;
 
   /* =========================================================
      工具
@@ -292,6 +295,7 @@
     bindEvents();
     updateSoundButton();
     updateGalleryCount();
+    updateAiEntry();
     createPetals();
     updateContinueButton();
     showScreen("title");
@@ -325,6 +329,11 @@
     UI.btnGalleryTitle.addEventListener("click", () => {
       play("click");
       openGallery("endings");
+    });
+
+    UI.btnAiTitle.addEventListener("click", () => {
+      play("click");
+      openAISettings();
     });
 
     UI.btnRandomName.addEventListener("click", () => {
@@ -532,6 +541,7 @@
     const major = selected.major || college.majors[0];
     const trait = getTrait(selected.trait);
     const home = getHometown(UI.selectHome.value);
+    const aiConfig = JNU_AI.loadConfig();
     UI.createSummary.innerHTML = `
       你将以 <b>2026 级新生</b> 的身份，进入 <b>${esc(college.name)}</b> 的
       <b>${esc(major)}</b> 专业。来自 <b>${esc(home.name)}</b>，性格 <b>${esc(trait.name)}</b>。
@@ -539,6 +549,7 @@
         <span class="summary-tag">${esc(college.bonusText)}</span>
         <span class="summary-tag">${esc(trait.bonusText)}</span>
         <span class="summary-tag">生活费 ${fmtMoney(home.allowance)} / 学期</span>
+        ${aiConfig.enabled ? '<span class="summary-tag summary-tag-ai">AI 剧情 · 已开启</span>' : ""}
       </div>
     `;
   }
@@ -688,28 +699,79 @@
       settleSemester(false);
       return;
     }
-    const event = pickEvent();
-    renderAll();
-    renderEvent(event);
-    save({ silent: true });
+    runTurn();
   }
 
-  function pickEvent() {
-    if (state.currentEventId) {
-      const current = ALL_EVENTS.find((event) => event.id === state.currentEventId);
-      if (current) return current;
+  async function runTurn() {
+    const token = ++turnToken;
+    const runState = state;
+    renderAll();
+
+    // 已生成（或已选好）的事件优先恢复，刷新页面不会重复请求 AI
+    if (state.dynamicEvent && state.dynamicEvent.id === state.currentEventId) {
+      renderEvent(state.dynamicEvent);
+      return;
+    }
+    const existing = state.currentEventId
+      ? ALL_EVENTS.find((event) => event.id === state.currentEventId)
+      : null;
+    if (existing) {
+      renderEvent(existing);
+      return;
     }
 
     const fixed = JNU_FIXED.find((event) => {
       if (event.sem !== state.semester || event.turn !== state.turn) return false;
       return conditionMet(event);
     });
-
     if (fixed) {
       state.currentEventId = fixed.id;
-      return fixed;
+      state.dynamicEvent = null;
+      renderEvent(fixed);
+      save({ silent: true });
+      return;
     }
 
+    const aiConfig = JNU_AI.loadConfig();
+    if (aiConfig.enabled) {
+      if (!JNU_AI.hasCredentials(aiConfig)) {
+        if (!aiCredentialWarned) {
+          aiCredentialWarned = true;
+          toast("AI 剧情待配置", "还没有可用的 API Key，本回合先使用本地事件。可在菜单的「AI 剧情」里设置。", "danger");
+        }
+        renderStaticTurn();
+        return;
+      }
+
+      renderAiLoading(aiConfig);
+      try {
+        const aiEvent = await JNU_AI.generateEvent(state);
+        if (token !== turnToken || state !== runState || state.ended) return;
+        state.dynamicEvent = aiEvent;
+        state.currentEventId = aiEvent.id;
+        save({ silent: true });
+        renderAll();
+        renderEvent(aiEvent);
+        play("success");
+      } catch (error) {
+        if (token !== turnToken || state !== runState || state.ended) return;
+        toast("AI 生成失败", `${JNU_AI.describeError(error)}。已切换到本地事件。`, "danger");
+        renderStaticTurn();
+      }
+      return;
+    }
+
+    renderStaticTurn();
+  }
+
+  function renderStaticTurn() {
+    const event = pickStaticEvent();
+    renderAll();
+    renderEvent(event);
+    save({ silent: true });
+  }
+
+  function pickStaticEvent() {
     const pool = JNU_RANDOM.filter((event) => {
       if (state.used.includes(event.id)) return false;
       if (event.minSem != null && state.semester < event.minSem) return false;
@@ -717,6 +779,8 @@
       if (event.college && event.college !== state.player.collegeId) return false;
       return conditionMet(event);
     });
+
+    state.dynamicEvent = null;
 
     if (!pool.length) {
       state.currentEventId = FALLBACK_EVENT.id;
@@ -751,13 +815,22 @@
   }
 
   function currentEvent() {
+    if (state.dynamicEvent && state.dynamicEvent.id === state.currentEventId) {
+      return state.dynamicEvent;
+    }
     return ALL_EVENTS.find((event) => event.id === state.currentEventId) || FALLBACK_EVENT;
+  }
+
+  function renderEventText(text) {
+    return String(text || "")
+      .split(/\n{2,}/)
+      .map((part) => `<p class="event-text">${esc(part)}</p>`)
+      .join("");
   }
 
   function renderEvent(event) {
     const info = semesterInfo(state.semester);
     const week = info.weeks[state.turn] || "第16-18周";
-    const text = esc(typeText(event.text));
     const body = state.pending
       ? renderResultBody(event)
       : renderChoicesBody(event);
@@ -768,20 +841,65 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
           <span>${esc(event.scene)}</span>
         </span>
-        <span class="event-turn">${info.name} · ${week}</span>
+        <div class="event-tags">
+          ${event.ai ? `<span class="event-ai" title="由 ${esc(event.model || "AI")} 生成">AI 生成</span>` : ""}
+          <span class="event-turn">${info.name} · ${week}</span>
+        </div>
       </div>
       <p class="event-kicker">${esc(event.kicker || "江大日常")}</p>
       <h2 class="event-title">${esc(event.title)}</h2>
-      <p class="event-text">${text}</p>
+      ${renderEventText(typeText(event.text))}
       ${body}
     `;
 
     UI.eventFootNote.textContent = state.pending
       ? "选择已经做出，没有撤回键。"
-      : "每一次选择，都会在四年后的档案里留下痕迹。";
+      : event.ai
+        ? "本回合由 AI 生成 · 固定里程碑仍由剧本控制。"
+        : "每一次选择，都会在四年后的档案里留下痕迹。";
 
     UI.eventCard.style.animation = "none";
     // 触发重排，让每张事件卡都有一次入场动画
+    void UI.eventCard.offsetWidth;
+
+    UI.eventCard.style.animation = "";
+  }
+
+  function renderAiLoading(config) {
+    const info = semesterInfo(state.semester);
+    const week = info.weeks[state.turn] || "第16-18周";
+    const preset = JNU_AI.PRESETS[config.preset];
+    const label = preset ? preset.label : config.model;
+
+    UI.eventCard.innerHTML = `
+      <div class="event-head">
+        <span class="event-scene">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          <span>AI 剧情 · 正在生成</span>
+        </span>
+        <div class="event-tags">
+          <span class="event-ai">AI</span>
+          <span class="event-turn">${info.name} · ${week}</span>
+        </div>
+      </div>
+      <div class="ai-loading">
+        <div class="ai-loading-top">
+          <span class="ai-orb" aria-hidden="true"></span>
+          <div>
+            <p class="ai-loading-title">正在写这一周</p>
+            <p class="ai-loading-sub">${esc(label)} · 结合你的专业、状态与最近经历</p>
+          </div>
+        </div>
+        <div class="sk-lines" aria-hidden="true">
+          <i style="width:94%"></i><i style="width:88%"></i><i style="width:96%"></i><i style="width:62%"></i>
+        </div>
+        <div class="ai-loading-choices" aria-hidden="true"><i></i><i></i><i></i></div>
+        <p class="ai-loading-note">生成失败或超时会自动使用本地事件。</p>
+      </div>
+    `;
+
+    UI.eventFootNote.textContent = "AI 正在写作，固定节点不会被打断。";
+    UI.eventCard.style.animation = "none";
     void UI.eventCard.offsetWidth;
     UI.eventCard.style.animation = "";
   }
@@ -900,6 +1018,11 @@
       deltas,
       roll: resolved.roll
     };
+    state.lastChoice = {
+      eventTitle: event.title,
+      choiceLabel: choice.label,
+      result: String(state.pending.text || "").slice(0, 140)
+    };
 
     logEvent(event);
     checkAchievements();
@@ -982,15 +1105,17 @@
 
   function advance() {
     if (!state || !state.pending) return;
-    const event = ALL_EVENTS.find((item) => item.id === state.pending.eventId);
-    if (event && !event.fixed && !state.used.includes(event.id)) {
+    const event = currentEvent();
+    if (event && !event.fixed && !event.ai && !state.used.includes(event.id)) {
       state.used.push(event.id);
     }
+    const isGraduation = Boolean(event && event.id === "graduation");
 
     state.pending = null;
     state.currentEventId = null;
+    state.dynamicEvent = null;
 
-    if (event && event.id === "graduation") {
+    if (isGraduation) {
       save({ silent: true });
       settleSemester(true);
       return;
@@ -1578,8 +1703,192 @@
      菜单与通用弹窗
      ========================================================= */
 
+  function aiStatusText(config = JNU_AI.loadConfig()) {
+    if (!config.enabled) return "未开启";
+    if (!JNU_AI.hasCredentials(config)) return "待配置密钥";
+    const preset = JNU_AI.PRESETS[config.preset];
+    return `已开启 · ${preset ? preset.label : config.model}`;
+  }
+
+  function updateAiEntry() {
+    if (!UI.btnAiTitle) return;
+    const config = JNU_AI.loadConfig();
+    const ready = config.enabled && JNU_AI.hasCredentials(config);
+    UI.btnAiTitle.textContent = config.enabled
+      ? ready ? "AI 剧情 · 已开启" : "AI 剧情 · 待配置"
+      : "AI 剧情 · 未开启";
+    UI.btnAiTitle.classList.toggle("is-on", ready);
+    UI.btnAiTitle.title = "配置 AI 剧情生成";
+  }
+
+  function openAISettings() {
+    const config = JNU_AI.loadConfig();
+    let activePreset = config.preset || "custom";
+
+    const presetButtons = Object.entries(JNU_AI.PRESETS)
+      .map(([id, preset]) => `
+        <button type="button" class="ai-preset ${id === activePreset ? "is-active" : ""}" data-preset="${id}">
+          ${esc(preset.label)}
+        </button>
+      `)
+      .join("");
+
+    openModal(`
+      <div class="modal-head">
+        <button type="button" class="modal-close" aria-label="关闭">×</button>
+        <p class="eyebrow">AI NARRATIVE · 可选</p>
+        <h2>AI 剧情设置</h2>
+        <p>固定里程碑仍由剧本控制，只有随机回合交给模型生成。</p>
+      </div>
+      <div class="ai-body">
+        <label class="ai-toggle-row">
+          <span>
+            <b>开启 AI 剧情</b>
+            <small>每个非固定回合调用一次模型；失败会自动回退本地事件</small>
+          </span>
+          <input type="checkbox" class="switch-input" id="ai-enabled" ${config.enabled ? "checked" : ""}>
+        </label>
+
+        <div class="ai-preset-label">选择接口</div>
+        <div class="ai-presets" id="ai-presets">${presetButtons}</div>
+
+        <label class="field ai-field">
+          <span class="field-label">Base URL</span>
+          <input class="input ai-mono" id="ai-base" type="url" spellcheck="false" autocomplete="off"
+            value="${esc(config.baseUrl)}" placeholder="https://api.deepseek.com/v1">
+        </label>
+        <label class="field ai-field">
+          <span class="field-label">模型</span>
+          <input class="input ai-mono" id="ai-model" type="text" spellcheck="false" autocomplete="off"
+            value="${esc(config.model)}" placeholder="deepseek-chat">
+        </label>
+        <label class="field ai-field">
+          <span class="field-label">API Key</span>
+          <input class="input ai-mono" id="ai-key" type="password" spellcheck="false" autocomplete="off"
+            value="${esc(config.key)}" placeholder="${activePreset === "ollama" ? "本地 Ollama 可留空" : "sk-..."}">
+        </label>
+
+        <p class="ai-hint">密钥只保存在本机浏览器的 localStorage，不会发往你填写的接口之外的任何地方。公共电脑上请不要保存密钥。DeepSeek、Moonshot 与本地 Ollama 已验证可用于浏览器直连；OpenAI 官方接口可能拦截跨域请求，若提示“无法连接接口”，可改用本地 Ollama 或自建代理。</p>
+
+        <div class="ai-status" id="ai-status"></div>
+
+        <div class="ai-actions">
+          <button type="button" class="btn btn-secondary" id="ai-test">测试连接</button>
+          <button type="button" class="btn btn-primary" id="ai-save">保存设置</button>
+        </div>
+
+        <div class="ai-foot">
+          <button type="button" class="link-btn" id="ai-clear-key">清除已保存的密钥</button>
+          <span>·</span>
+          <span>AI 生成失败时自动回退本地事件</span>
+        </div>
+      </div>
+    `, { className: "ai-modal", dismissible: true });
+
+    const enabled = $("#ai-enabled");
+    const baseInput = $("#ai-base");
+    const modelInput = $("#ai-model");
+    const keyInput = $("#ai-key");
+    const status = $("#ai-status");
+    const testButton = $("#ai-test");
+    const saveButton = $("#ai-save");
+
+    const setStatus = (text, kind) => {
+      if (!status || !document.body.contains(status)) return;
+      status.textContent = text || "";
+      status.className = `ai-status${kind ? ` is-${kind}` : ""}`;
+    };
+
+    const readForm = () => ({
+      enabled: Boolean(enabled && enabled.checked),
+      preset: activePreset,
+      baseUrl: baseInput ? baseInput.value.trim() : "",
+      model: modelInput ? modelInput.value.trim() : "",
+      key: keyInput ? keyInput.value.trim() : "",
+      timeout: 45000
+    });
+
+    $$("#modal-root .ai-preset").forEach((button) => {
+      button.addEventListener("click", () => {
+        const previousPreset = activePreset;
+        activePreset = button.dataset.preset;
+        $$("#modal-root .ai-preset").forEach((item) => item.classList.toggle("is-active", item === button));
+        const preset = JNU_AI.PRESETS[activePreset];
+        if (preset && activePreset !== "custom") {
+          if (baseInput) baseInput.value = preset.baseUrl;
+          if (modelInput) modelInput.value = preset.model;
+        }
+        if (keyInput) keyInput.placeholder = activePreset === "ollama" ? "本地 Ollama 可留空" : "sk-...";
+        const changed = previousPreset !== activePreset;
+        if (changed && keyInput) keyInput.value = "";
+        setStatus(changed ? "已切换接口，请重新填写 API Key。" : "", changed ? "pending" : "");
+        play("click");
+      });
+    });
+
+    if (testButton) {
+      testButton.addEventListener("click", async () => {
+        const form = readForm();
+        if (!form.baseUrl || !form.model) {
+          setStatus("请先填写 Base URL 与模型。", "err");
+          return;
+        }
+        testButton.disabled = true;
+        setStatus("正在连接…", "pending");
+        try {
+          const result = await JNU_AI.testConnection(form);
+          setStatus(`连接成功 · ${result.ms}ms · ${result.preview}`, "ok");
+        } catch (error) {
+          setStatus(JNU_AI.describeError(error), "err");
+        } finally {
+          if (document.body.contains(testButton)) testButton.disabled = false;
+        }
+      });
+    }
+
+    if (saveButton) {
+      saveButton.addEventListener("click", () => {
+        const form = readForm();
+        if (!form.baseUrl || !form.model) {
+          setStatus("请先填写 Base URL 与模型。", "err");
+          return;
+        }
+        if (!JNU_AI.saveConfig(form)) {
+          setStatus("无法写入本地存储，请检查浏览器设置。", "err");
+          return;
+        }
+        aiCredentialWarned = false;
+        updateAiEntry();
+        updateCreateSummary();
+        closeModal();
+        if (form.enabled && !JNU_AI.hasCredentials(form)) {
+          toast("AI 剧情已开启", "还缺少 API Key，随机回合会先使用本地事件。", "gold");
+        } else if (form.enabled) {
+          toast("AI 剧情已开启", "随机回合由 AI 生成，固定节点保持剧本控制。");
+        } else {
+          toast("AI 剧情已关闭", "所有事件将使用本地剧本。");
+        }
+      });
+    }
+
+    const clearKey = $("#ai-clear-key");
+    if (clearKey) {
+      clearKey.addEventListener("click", () => {
+        const next = { ...JNU_AI.loadConfig(), key: "", enabled: false };
+        JNU_AI.saveConfig(next);
+        if (keyInput) keyInput.value = "";
+        if (enabled) enabled.checked = false;
+        aiCredentialWarned = false;
+        updateAiEntry();
+        updateCreateSummary();
+        setStatus("已清除本机保存的密钥，并关闭 AI 剧情。", "ok");
+      });
+    }
+  }
+
   function openMenu() {
     if (!state) return;
+    const aiConfig = JNU_AI.loadConfig();
     openModal(`
       <div class="modal-head">
         <button type="button" class="modal-close" aria-label="关闭">×</button>
@@ -1592,6 +1901,9 @@
           <button type="button" class="menu-row" data-action="resume">
             <span><b>继续游戏</b><small>回到 ${esc(currentSemesterName())} · ${esc(currentWeekLabel())}</small></span><span>→</span>
           </button>
+          <button type="button" class="menu-row" data-action="ai">
+            <span><b>AI 剧情</b><small>${esc(aiStatusText(aiConfig))} · 随机回合由模型生成</small></span><span>${aiConfig.enabled ? "设置" : "开启"}</span>
+          </button>
           <button type="button" class="menu-row" data-action="sound">
             <span><b>音效</b><small>当前：${meta.muted ? "关闭" : "开启"}</small></span><span>${meta.muted ? "开启" : "关闭"}</span>
           </button>
@@ -1602,7 +1914,7 @@
             <span><b>重新开始</b><small>覆盖当前存档，已解锁图鉴保留</small></span><span>→</span>
           </button>
         </div>
-        <p class="menu-foot">江南大学本科生模拟器 · 本地单机版<br>所有数据仅保存在当前浏览器，不上传任何服务器。</p>
+        <p class="menu-foot">江南大学本科生模拟器 · 本地单机版<br>存档与图鉴保存在本机；开启 AI 后，当前档案摘要会发送给你配置的模型接口。</p>
       </div>
     `, { className: "menu-modal", dismissible: true });
 
@@ -1611,6 +1923,9 @@
         const action = button.dataset.action;
         if (action === "resume") {
           closeModal();
+        } else if (action === "ai") {
+          closeModal();
+          openAISettings();
         } else if (action === "sound") {
           toggleSound();
           closeModal();
